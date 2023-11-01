@@ -1,0 +1,16 @@
+# This workflow will add a comment to instruct dependabot to merge the PR after checks pass.
+
+name: Dependabot merge
+on: 
+  workflow_call:
+
+jobs:
+  dependabot-merge:
+    runs-on: ubuntu-latest
+    if: ${{ github.actor == 'dependabot[bot]' }}
+    steps:
+      - name: Dependabot merge comment
+        run: gh pr comment --body "@dependabot merge (if checks succeed)" "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.AUTO_MERGE }}
