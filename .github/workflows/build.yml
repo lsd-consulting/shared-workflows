@@ -25,28 +25,42 @@ jobs:
     runs-on: ${{ inputs.operating-system }}
     steps:
       - uses: actions/checkout@v3
+      
       - uses: actions/setup-java@v3
         with:
           java-version: ${{ inputs.java-version }}
           distribution: 'adopt'
           cache: 'gradle'
-      - uses: actions/cache@v3
+      
+      - uses: actions/cache/restore@v3
         if: ${{ inputs.cache-playwright }}
-        id: cache-playwright
+        id: restore-ms-playwright-cache
         with:
           path: /Users/runner/Library/Caches/ms-playwright
-          key: ms-playwright
-      - if: steps.cache-playwright.outputs.cache-hit == 'true'
-        run: echo "Using playwright cache"
+          key: ${{ runner.os }}-ms-playwright
+
       - run: ./gradlew build
+
+      - uses: actions/cache/save@v3
+        if: ${{ inputs.cache-playwright }}
+        id: save-ms-playwright-cache
+        with:
+          path: /Users/runner/Library/Caches/ms-playwright
+          key: ${{ runner.os }}-ms-playwright
+      
       - uses: actions/upload-artifact@v3
         if: always()
         with:
           retention-days: 30
           name: artifact
           path: ${{ inputs.artifact-path }}
+      
       - uses: codecov/codecov-action@v3
         if: ${{ inputs.codecov }}
         with:
           files: ${{ inputs.codecov-path }}
           verbose: true
+
+
+
+          
