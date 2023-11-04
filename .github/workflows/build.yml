@@ -36,8 +36,6 @@ jobs:
         with:
           path: /Users/runner/Library/Caches/ms-playwright
           key: ms-playwright
-      - if: steps.cache-playwright.outputs.cache-hit == 'true'
-        run: echo "Using playwright cache"
       - run: ./gradlew build
       - uses: actions/upload-artifact@v3
         if: always()
