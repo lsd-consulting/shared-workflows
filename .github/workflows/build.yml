@@ -20,22 +20,34 @@ on:
       artifact-path:
         type: string
         default: build/reports
+      macos-docker:
+        type: boolean
+        default: false
 jobs:
   build:
     runs-on: ${{ inputs.operating-system }}
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-java@v3
-        with:
-          java-version: ${{ inputs.java-version }}
-          distribution: 'adopt'
-          cache: 'gradle'
+      - uses: douglascamata/setup-docker-macos-action@v1-alpha
+        if: ${{ inputs.macos-docker }}
+      - name: Fix for docker.sock issue
+        if: ${{ inputs.macos-docker }}
+        run: |
+          # https://github.com/abiosoft/colima/blob/main/docs/FAQ.md#cannot-connect-to-the-docker-daemon-at-unixvarrundockersock-is-the-docker-daemon-running
+          sudo ln -sf $HOME/.colima/default/docker.sock /var/run/docker.sock
+
       - uses: actions/cache@v3
         if: ${{ inputs.cache-playwright }}
         id: cache-playwright
         with:
           path: /Users/runner/Library/Caches/ms-playwright
           key: ms-playwright
+
+      - uses: actions/checkout@v3
+      - uses: actions/setup-java@v3
+        with:
+          java-version: ${{ inputs.java-version }}
+          distribution: 'adopt'
+          cache: 'gradle'
       - run: ./gradlew build
       - uses: actions/upload-artifact@v3
         if: always()
