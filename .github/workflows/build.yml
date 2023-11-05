@@ -24,7 +24,7 @@ on:
         type: boolean
         default: false
 jobs:
-  build:
+  shared-build:
     runs-on: ${{ inputs.operating-system }}
     steps:
       - uses: douglascamata/setup-docker-macos-action@v1-alpha

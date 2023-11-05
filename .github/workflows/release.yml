@@ -11,7 +11,7 @@ on:
         required: true
         type: string
 jobs:
-  release:
+  shared-release:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
