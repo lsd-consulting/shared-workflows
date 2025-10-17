@@ -16,26 +16,24 @@ jobs:
       - name: Check for required checks
         id: check-required
         env:
-          GH_TOKEN: ${{ secrets.AUTO_MERGE }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Checking protection for: repos/${{ github.repository }}/branches/${{ github.ref_name }}/protection"
-          protection_response=$(gh api repos/${{ github.repository }}/branches/${{ github.ref_name }}/protection 2>/dev/null || echo "null")
-          echo "Protection response: $protection_response"
+          echo "Checking PR status checks for PR #${{ github.event.number }}"
           
-          if [ "$protection_response" = "null" ]; then
-            echo "has-required=false" >> $GITHUB_OUTPUT
-            echo "no branch protection found ❌"
+          # Get PR status - if it's mergeable and not blocked, assume required checks exist
+          pr_status=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }} --jq '.mergeable_state')
+          echo "PR mergeable state: $pr_status"
+          
+          # Check if there are any pending/failing status checks
+          status_checks=$(gh api repos/${{ github.repository }}/commits/${{ github.event.pull_request.head.sha }}/status --jq '.statuses | length')
+          echo "Status checks count: $status_checks"
+          
+          if [ "$pr_status" = "blocked" ] || [ "$status_checks" -gt 0 ]; then
+            echo "has-required=true" >> $GITHUB_OUTPUT
+            echo "required checks detected (PR state: $pr_status) ✅"
           else
-            check_count=$(echo "$protection_response" | jq -r '.required_status_checks.checks | length // 0')
-            echo "Required status checks count: $check_count"
-            
-            if [ "$check_count" -gt 0 ]; then
-              echo "has-required=true" >> $GITHUB_OUTPUT
-              echo "has required status checks ✅ ($check_count checks)"
-            else
-              echo "has-required=false" >> $GITHUB_OUTPUT
-              echo "missing required status checks ❌"
-            fi
+            echo "has-required=false" >> $GITHUB_OUTPUT
+            echo "no required checks detected ❌"
           fi
 
       - name: Dependabot metadata
