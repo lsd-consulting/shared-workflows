@@ -12,12 +12,24 @@ jobs:
       - name: Check for required checks
         id: check-required
         run: |
-          if gh api repos/${{ github.repository }}/branches/${{ github.ref_name }}/protection --jq '.required_status_checks.checks | length' 2>/dev/null | grep -q '^[1-9]'; then
-            echo "has-required=true" >> $GITHUB_OUTPUT
-            echo "has required status checks ✅"
-          else
+          echo "Checking protection for: repos/${{ github.repository }}/branches/${{ github.ref_name }}/protection"
+          protection_response=$(gh api repos/${{ github.repository }}/branches/${{ github.ref_name }}/protection 2>/dev/null || echo "null")
+          echo "Protection response: $protection_response"
+          
+          if [ "$protection_response" = "null" ]; then
             echo "has-required=false" >> $GITHUB_OUTPUT
-            echo "missing required status checks ❌"
+            echo "no branch protection found ❌"
+          else
+            check_count=$(echo "$protection_response" | jq -r '.required_status_checks.checks | length // 0')
+            echo "Required status checks count: $check_count"
+            
+            if [ "$check_count" -gt 0 ]; then
+              echo "has-required=true" >> $GITHUB_OUTPUT
+              echo "has required status checks ✅ ($check_count checks)"
+            else
+              echo "has-required=false" >> $GITHUB_OUTPUT
+              echo "missing required status checks ❌"
+            fi
           fi
 
       - name: Dependabot metadata
