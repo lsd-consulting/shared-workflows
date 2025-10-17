@@ -14,6 +14,7 @@ jobs:
         run: |
           if gh api repos/${{ github.repository }}/branches/${{ github.ref_name }}/protection --jq '.required_status_checks.checks | length' 2>/dev/null | grep -q '^[1-9]'; then
             echo "has-required=true" >> $GITHUB_OUTPUT
+            echo "has required status checks ✅"
           else
             echo "has-required=false" >> $GITHUB_OUTPUT
           fi
@@ -27,7 +28,7 @@ jobs:
 
       - name: Auto-approve minor/patch
         if: |
-          github.actor == 'dependabot[bot]' && steps.check-required.outputs.has-required == 'true' && 
+          steps.check-required.outputs.has-required == 'true' && 
           (steps.metadata.outputs.update-type == 'version-update:semver-minor' || 
            steps.metadata.outputs.update-type == 'version-update:semver-patch')
         run: |
