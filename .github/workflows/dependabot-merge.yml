@@ -17,6 +17,7 @@ jobs:
             echo "has required status checks ✅"
           else
             echo "has-required=false" >> $GITHUB_OUTPUT
+            echo "missing required status checks ❌"
           fi
 
       - name: Dependabot metadata
