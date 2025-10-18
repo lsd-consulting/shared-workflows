@@ -39,6 +39,16 @@ jobs:
             echo "no required checks detected ❌"
           fi
 
+      - name: Enable auto-merge (if has required checks)
+        if: |
+          steps.check-required.outputs.has-required == 'true'
+        run: |
+          gh pr merge --auto --squash "$PR_URL"
+          echo "✅ Auto-merge enabled for Dependabot PR"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.AUTO_MERGE }}
+
       - name: Dependabot metadata
         if: github.actor == 'dependabot[bot]'
         id: metadata
@@ -48,14 +58,10 @@ jobs:
 
       - name: Auto-approve minor/patch
         if: |
-          steps.check-required.outputs.has-required == 'true' && 
           (steps.metadata.outputs.update-type == 'version-update:semver-minor' || 
            steps.metadata.outputs.update-type == 'version-update:semver-patch')
         run: |
-          gh pr review ${{ github.event.number }} --approve
-          echo "✅ Auto approved for minor/patch updates"
-          gh pr merge --auto --squash "$PR_URL"
-          echo "✅ Auto-merge enabled for Dependabot PR"
+          gh pr review ${{ github.event.number }} --approve --body "Auto approved for minor/patch updates ✅"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.AUTO_MERGE }}
