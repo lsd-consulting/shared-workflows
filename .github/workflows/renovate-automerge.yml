@@ -73,7 +73,6 @@ jobs:
            steps.renovate-metadata.outputs.update-type == 'minor')
         run: |
           UPDATE_TYPE="${{ steps.renovate-metadata.outputs.update-type }}"
-          DEP_TYPE="${{ steps.renovate-metadata.outputs.dep-type }}"
           
           REASON="Auto-approved $UPDATE_TYPE update"
           
