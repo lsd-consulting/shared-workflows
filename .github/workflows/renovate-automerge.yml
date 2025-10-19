@@ -61,62 +61,21 @@ jobs:
             UPDATE_TYPE="major"
           fi
           
-          # Determine dependency type from PR title prefix
-          DEP_TYPE="production"
-          if [[ "$PR_TITLE" =~ ^test: ]]; then
-            DEP_TYPE="test"
-          elif [[ "$PR_TITLE" =~ ^chore: ]]; then
-            DEP_TYPE="dev"
-          fi
-          
-          # Check if it's a safe dependency (test or dev tools)
-          SAFE_DEP="false"
-          if [[ "$DEP_TYPE" == "test" || "$DEP_TYPE" == "dev" ]]; then
-            SAFE_DEP="true"
-          fi
-          
-          # Check for safe production dependencies
-          if [[ "$PR_TITLE" =~ (kotlin|gradle|cucumber|junit|mockito|testcontainers) ]]; then
-            SAFE_DEP="true"
-          fi
-          
           echo "update-type=$UPDATE_TYPE" >> $GITHUB_OUTPUT
-          echo "dep-type=$DEP_TYPE" >> $GITHUB_OUTPUT
-          echo "safe-dep=$SAFE_DEP" >> $GITHUB_OUTPUT
           
           echo "Parsed metadata:"
           echo "  Update type: $UPDATE_TYPE"
-          echo "  Dependency type: $DEP_TYPE" 
-          echo "  Safe dependency: $SAFE_DEP"
 
-      - name: Auto-approve safe updates
+      - name: Auto-approve minor or patch
         if: |
           steps.check-required.outputs.has-required == 'true' &&
           (steps.renovate-metadata.outputs.update-type == 'patch' || 
-           steps.renovate-metadata.outputs.update-type == 'minor') &&
-          steps.renovate-metadata.outputs.safe-dep == 'true'
+           steps.renovate-metadata.outputs.update-type == 'minor')
         run: |
           UPDATE_TYPE="${{ steps.renovate-metadata.outputs.update-type }}"
           DEP_TYPE="${{ steps.renovate-metadata.outputs.dep-type }}"
           
-          REASON="Auto-approved $UPDATE_TYPE update for $DEP_TYPE dependencies"
-          
-          gh pr review ${{ github.event.number }} --approve --body "$REASON ✅"
-          echo "✅ $REASON"
-        env:
-          GH_TOKEN: ${{ secrets.AUTO_MERGE }}
-
-      - name: Auto-approve minor/patch production updates
-        if: |
-          steps.check-required.outputs.has-required == 'true' &&
-          (steps.renovate-metadata.outputs.update-type == 'patch' || 
-           steps.renovate-metadata.outputs.update-type == 'minor') &&
-          steps.renovate-metadata.outputs.dep-type == 'production' &&
-          steps.renovate-metadata.outputs.safe-dep == 'false'
-        run: |
-          UPDATE_TYPE="${{ steps.renovate-metadata.outputs.update-type }}"
-          
-          REASON="Auto-approved $UPDATE_TYPE production dependency update"
+          REASON="Auto-approved $UPDATE_TYPE update"
           
           gh pr review ${{ github.event.number }} --approve --body "$REASON ✅"
           echo "✅ $REASON"
