@@ -44,20 +44,16 @@ jobs:
         if: github.actor == 'renovate[bot]'
         id: renovate-metadata
         run: |
-          PR_TITLE="${{ github.event.pull_request.title }}"
-          PR_LABELS="${{ toJson(github.event.pull_request.labels.*.name) }}"
-          PR_BODY="${{ github.event.pull_request.body }}"
-          
-          echo "PR Title: $PR_TITLE"
-          echo "PR Labels: $PR_LABELS"
+          echo "PR Title: ${{ github.event.pull_request.title }}"
+          echo "PR Labels: ${{ toJson(github.event.pull_request.labels.*.name) }}"
           
           # Determine update type from PR labels
           UPDATE_TYPE="unknown"
-          if echo "$PR_LABELS" | grep -q "patch"; then
+          if echo '${{ toJson(github.event.pull_request.labels.*.name) }}' | grep -q "patch"; then
             UPDATE_TYPE="patch"
-          elif echo "$PR_LABELS" | grep -q "minor"; then
+          elif echo '${{ toJson(github.event.pull_request.labels.*.name) }}' | grep -q "minor"; then
             UPDATE_TYPE="minor"
-          elif echo "$PR_LABELS" | grep -q "major"; then
+          elif echo '${{ toJson(github.event.pull_request.labels.*.name) }}' | grep -q "major"; then
             UPDATE_TYPE="major"
           fi
           
