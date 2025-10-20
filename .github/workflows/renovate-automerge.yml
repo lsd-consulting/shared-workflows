@@ -60,27 +60,22 @@ jobs:
             UPDATE_TYPE="minor"
           elif echo "$PR_LABELS" | grep -qiE "major"; then
             UPDATE_TYPE="major"
-          # Fallback: parse from PR title
-          elif echo "$PR_TITLE" | grep -qE "[0-9]+\.[0-9]+\.[0-9]+.*[0-9]+\.[0-9]+\.[0-9]+"; then
-            # Try to detect from version numbers in title
-            if echo "$PR_TITLE" | grep -qE "[0-9]+\.[0-9]+\.[0-9]+ to [0-9]+\.[0-9]+\.[0-9]+$"; then
-              # Extract versions and compare
-              OLD_VER=$(echo "$PR_TITLE" | grep -oE "[0-9]+\.[0-9]+\.[0-9]+" | head -1)
-              NEW_VER=$(echo "$PR_TITLE" | grep -oE "[0-9]+\.[0-9]+\.[0-9]+" | tail -1)
-              
-              OLD_MAJOR=$(echo "$OLD_VER" | cut -d. -f1)
-              NEW_MAJOR=$(echo "$NEW_VER" | cut -d. -f1)
-              OLD_MINOR=$(echo "$OLD_VER" | cut -d. -f2)
-              NEW_MINOR=$(echo "$NEW_VER" | cut -d. -f2)
-              
-              if [ "$NEW_MAJOR" -gt "$OLD_MAJOR" ]; then
-                UPDATE_TYPE="major"
-              elif [ "$NEW_MAJOR" -eq "$OLD_MAJOR" ] && [ "$NEW_MINOR" -gt "$OLD_MINOR" ]; then
-                UPDATE_TYPE="minor"
-              elif [ "$NEW_MAJOR" -eq "$OLD_MAJOR" ] && [ "$NEW_MINOR" -eq "$OLD_MINOR" ]; then
-                UPDATE_TYPE="patch"
-              fi
-            fi
+          # Single version detection (common for Renovate PRs like "to v25")
+          elif echo "$PR_TITLE" | grep -qE "to v[0-9]+([^.]|$)"; then
+            # Single version number usually indicates minor version
+            UPDATE_TYPE="minor"
+            echo "Detected single version number update - treating as minor"
+            
+          # Fallback: try simpler patterns for PR titles without semantic version
+          elif echo "$PR_TITLE" | grep -qiE "(fix|patch|bugfix)"; then
+            UPDATE_TYPE="patch"
+            echo "Detected fix/patch keywords in title"
+          elif echo "$PR_TITLE" | grep -qiE "(feat|feature|minor)"; then
+            UPDATE_TYPE="minor"
+            echo "Detected feature/minor keywords in title"
+          elif echo "$PR_TITLE" | grep -qiE "(breaking|major)"; then
+            UPDATE_TYPE="major"
+            echo "Detected breaking/major keywords in title"
           fi
           
           echo "update-type=$UPDATE_TYPE" >> $GITHUB_OUTPUT
