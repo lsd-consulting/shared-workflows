@@ -53,49 +53,97 @@ jobs:
           # Determine update type from PR labels (try multiple patterns)
           UPDATE_TYPE="unknown"
           
-          # Check for Renovate semantic version labels
+          # Check for Renovate semantic version labels (most reliable)
           if echo "$PR_LABELS" | grep -qiE "patch"; then
             UPDATE_TYPE="patch"
           elif echo "$PR_LABELS" | grep -qiE "minor"; then
             UPDATE_TYPE="minor"
           elif echo "$PR_LABELS" | grep -qiE "major"; then
             UPDATE_TYPE="major"
-          # Check for conventional commit prefixes in title
-          elif echo "$PR_TITLE" | grep -qE "^fix\(deps\):"; then
-            UPDATE_TYPE="patch"
-            echo "Detected fix(deps) prefix - treating as patch"
-          elif echo "$PR_TITLE" | grep -qE "^feat\(deps\):"; then
-            UPDATE_TYPE="minor"
-            echo "Detected feat(deps) prefix - treating as minor"
-          elif echo "$PR_TITLE" | grep -qE "^chore\(deps\):"; then
-            # For chore(deps), we can't determine type safely - leave as unknown
+          else
+            # Fallback if no labels - this shouldn't happen with new config
             UPDATE_TYPE="unknown"
-            echo "Detected chore(deps) prefix - cannot determine update type safely"
+            echo "No semantic version labels found - update type unknown"
+          fi
+          
+          # Determine commit prefix for approval logic
+          COMMIT_PREFIX="unknown"
+          if echo "$PR_TITLE" | grep -qE "^fix\(deps\):"; then
+            COMMIT_PREFIX="fix"
+          elif echo "$PR_TITLE" | grep -qE "^chore\(deps\):"; then
+            COMMIT_PREFIX="chore"
+          elif echo "$PR_TITLE" | grep -qE "^feat\(deps\):"; then
+            COMMIT_PREFIX="feat"
+          elif echo "$PR_TITLE" | grep -qE "^ci\(deps\):"; then
+            COMMIT_PREFIX="ci"
           fi
           
           echo "update-type=$UPDATE_TYPE" >> $GITHUB_OUTPUT
+          echo "commit-prefix=$COMMIT_PREFIX" >> $GITHUB_OUTPUT
           
           echo "Parsed metadata:"
           echo "  Update type: $UPDATE_TYPE"
-          echo "  Detected from: $([ "$UPDATE_TYPE" != "unknown" ] && echo "labels/title analysis" || echo "unable to determine")"
+          echo "  Commit prefix: $COMMIT_PREFIX"
+          echo "  Detection: $([ "$UPDATE_TYPE" != "unknown" ] && echo "from labels" || echo "no labels found")"
 
-      - name: Auto-approve minor or patch
+      - name: Auto-approve fix(deps) minor/patch updates
         if: |
           steps.check-required.outputs.has-required == 'true' &&
+          steps.renovate-metadata.outputs.commit-prefix == 'fix' &&
           (steps.renovate-metadata.outputs.update-type == 'patch' || 
            steps.renovate-metadata.outputs.update-type == 'minor')
         run: |
           UPDATE_TYPE="${{ steps.renovate-metadata.outputs.update-type }}"
           
-          REASON="Auto-approved $UPDATE_TYPE update"
+          REASON="Auto-approved fix(deps) $UPDATE_TYPE update - production dependency"
           
           gh pr review ${{ github.event.number }} --approve --body "$REASON ✅"
           echo "✅ $REASON"
         env:
           GH_TOKEN: ${{ secrets.AUTO_MERGE }}
 
-      - name: Skip major updates
+      - name: Auto-approve chore(deps) all updates
         if: |
-          steps.renovate-metadata.outputs.update-type == 'major'
+          steps.check-required.outputs.has-required == 'true' &&
+          steps.renovate-metadata.outputs.commit-prefix == 'chore' &&
+          steps.renovate-metadata.outputs.update-type != 'unknown'
         run: |
-          echo "⚠️ Skipping auto-approval for major update - requires manual review"
+          UPDATE_TYPE="${{ steps.renovate-metadata.outputs.update-type }}"
+          
+          REASON="Auto-approved chore(deps) $UPDATE_TYPE update - test/dev dependency"
+          
+          gh pr review ${{ github.event.number }} --approve --body "$REASON ✅"
+          echo "✅ $REASON"
+        env:
+          GH_TOKEN: ${{ secrets.AUTO_MERGE }}
+
+      - name: Auto-approve other minor/patch updates  
+        if: |
+          steps.check-required.outputs.has-required == 'true' &&
+          steps.renovate-metadata.outputs.commit-prefix != 'fix' &&
+          steps.renovate-metadata.outputs.commit-prefix != 'chore' &&
+          (steps.renovate-metadata.outputs.update-type == 'patch' || 
+           steps.renovate-metadata.outputs.update-type == 'minor')
+        run: |
+          UPDATE_TYPE="${{ steps.renovate-metadata.outputs.update-type }}"
+          PREFIX="${{ steps.renovate-metadata.outputs.commit-prefix }}"
+          
+          REASON="Auto-approved $PREFIX(deps) $UPDATE_TYPE update"
+          
+          gh pr review ${{ github.event.number }} --approve --body "$REASON ✅"
+          echo "✅ $REASON"
+        env:
+          GH_TOKEN: ${{ secrets.AUTO_MERGE }}
+
+      - name: Skip major fix(deps) updates
+        if: |
+          steps.renovate-metadata.outputs.update-type == 'major' &&
+          steps.renovate-metadata.outputs.commit-prefix == 'fix'
+        run: |
+          echo "⚠️ Skipping auto-approval for fix(deps) major update - requires manual review for production dependencies"
+
+      - name: Skip unknown updates
+        if: |
+          steps.renovate-metadata.outputs.update-type == 'unknown'
+        run: |
+          echo "⚠️ Skipping auto-approval for unknown update type - requires manual review"
