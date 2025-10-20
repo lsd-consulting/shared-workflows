@@ -53,29 +53,24 @@ jobs:
           # Determine update type from PR labels (try multiple patterns)
           UPDATE_TYPE="unknown"
           
-          # Check for semantic version labels
-          if echo "$PR_LABELS" | grep -qiE "(patch|fix)"; then
+          # Check for Renovate semantic version labels
+          if echo "$PR_LABELS" | grep -qiE "patch"; then
             UPDATE_TYPE="patch"
-          elif echo "$PR_LABELS" | grep -qiE "(minor|feature)"; then
+          elif echo "$PR_LABELS" | grep -qiE "minor"; then
             UPDATE_TYPE="minor"
           elif echo "$PR_LABELS" | grep -qiE "major"; then
             UPDATE_TYPE="major"
-          # Single version detection (common for Renovate PRs like "to v25")
-          elif echo "$PR_TITLE" | grep -qE "to v[0-9]+([^.]|$)"; then
-            # Single version number usually indicates minor version
-            UPDATE_TYPE="minor"
-            echo "Detected single version number update - treating as minor"
-            
-          # Fallback: try simpler patterns for PR titles without semantic version
-          elif echo "$PR_TITLE" | grep -qiE "(fix|patch|bugfix)"; then
+          # Check for conventional commit prefixes in title
+          elif echo "$PR_TITLE" | grep -qE "^fix\(deps\):"; then
             UPDATE_TYPE="patch"
-            echo "Detected fix/patch keywords in title"
-          elif echo "$PR_TITLE" | grep -qiE "(feat|feature|minor)"; then
+            echo "Detected fix(deps) prefix - treating as patch"
+          elif echo "$PR_TITLE" | grep -qE "^feat\(deps\):"; then
             UPDATE_TYPE="minor"
-            echo "Detected feature/minor keywords in title"
-          elif echo "$PR_TITLE" | grep -qiE "(breaking|major)"; then
-            UPDATE_TYPE="major"
-            echo "Detected breaking/major keywords in title"
+            echo "Detected feat(deps) prefix - treating as minor"
+          elif echo "$PR_TITLE" | grep -qE "^chore\(deps\):"; then
+            # For chore(deps), we can't determine type safely - leave as unknown
+            UPDATE_TYPE="unknown"
+            echo "Detected chore(deps) prefix - cannot determine update type safely"
           fi
           
           echo "update-type=$UPDATE_TYPE" >> $GITHUB_OUTPUT
