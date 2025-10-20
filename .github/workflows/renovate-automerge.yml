@@ -44,23 +44,50 @@ jobs:
         if: github.actor == 'renovate[bot]'
         id: renovate-metadata
         run: |
-          echo "PR Title: ${{ github.event.pull_request.title }}"
-          echo "PR Labels: ${{ toJson(github.event.pull_request.labels.*.name) }}"
+          PR_TITLE='${{ github.event.pull_request.title }}'
+          PR_LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}'
           
-          # Determine update type from PR labels
+          echo "PR Title: $PR_TITLE"
+          echo "PR Labels: $PR_LABELS"
+          
+          # Determine update type from PR labels (try multiple patterns)
           UPDATE_TYPE="unknown"
-          if echo '${{ toJson(github.event.pull_request.labels.*.name) }}' | grep -q "patch"; then
+          
+          # Check for semantic version labels
+          if echo "$PR_LABELS" | grep -qiE "(patch|fix)"; then
             UPDATE_TYPE="patch"
-          elif echo '${{ toJson(github.event.pull_request.labels.*.name) }}' | grep -q "minor"; then
+          elif echo "$PR_LABELS" | grep -qiE "(minor|feature)"; then
             UPDATE_TYPE="minor"
-          elif echo '${{ toJson(github.event.pull_request.labels.*.name) }}' | grep -q "major"; then
+          elif echo "$PR_LABELS" | grep -qiE "major"; then
             UPDATE_TYPE="major"
+          # Fallback: parse from PR title
+          elif echo "$PR_TITLE" | grep -qE "[0-9]+\.[0-9]+\.[0-9]+.*[0-9]+\.[0-9]+\.[0-9]+"; then
+            # Try to detect from version numbers in title
+            if echo "$PR_TITLE" | grep -qE "[0-9]+\.[0-9]+\.[0-9]+ to [0-9]+\.[0-9]+\.[0-9]+$"; then
+              # Extract versions and compare
+              OLD_VER=$(echo "$PR_TITLE" | grep -oE "[0-9]+\.[0-9]+\.[0-9]+" | head -1)
+              NEW_VER=$(echo "$PR_TITLE" | grep -oE "[0-9]+\.[0-9]+\.[0-9]+" | tail -1)
+              
+              OLD_MAJOR=$(echo "$OLD_VER" | cut -d. -f1)
+              NEW_MAJOR=$(echo "$NEW_VER" | cut -d. -f1)
+              OLD_MINOR=$(echo "$OLD_VER" | cut -d. -f2)
+              NEW_MINOR=$(echo "$NEW_VER" | cut -d. -f2)
+              
+              if [ "$NEW_MAJOR" -gt "$OLD_MAJOR" ]; then
+                UPDATE_TYPE="major"
+              elif [ "$NEW_MAJOR" -eq "$OLD_MAJOR" ] && [ "$NEW_MINOR" -gt "$OLD_MINOR" ]; then
+                UPDATE_TYPE="minor"
+              elif [ "$NEW_MAJOR" -eq "$OLD_MAJOR" ] && [ "$NEW_MINOR" -eq "$OLD_MINOR" ]; then
+                UPDATE_TYPE="patch"
+              fi
+            fi
           fi
           
           echo "update-type=$UPDATE_TYPE" >> $GITHUB_OUTPUT
           
           echo "Parsed metadata:"
           echo "  Update type: $UPDATE_TYPE"
+          echo "  Detected from: $([ "$UPDATE_TYPE" != "unknown" ] && echo "labels/title analysis" || echo "unable to determine")"
 
       - name: Auto-approve minor or patch
         if: |
