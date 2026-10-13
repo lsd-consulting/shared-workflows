@@ -43,9 +43,12 @@ jobs:
       - name: Parse Renovate PR metadata
         if: github.actor == 'renovate[bot]'
         id: renovate-metadata
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PR_TITLE='${{ github.event.pull_request.title }}'
-          PR_LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}'
+          # Fetch labels live: the event payload can predate Renovate adding its labels.
+          PR_LABELS=$(gh pr view ${{ github.event.number }} --repo ${{ github.repository }} --json labels -q '[.labels[].name]')
           
           echo "PR Title: $PR_TITLE"
           echo "PR Labels: $PR_LABELS"
