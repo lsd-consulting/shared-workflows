@@ -35,30 +35,32 @@ jobs:
           # https://github.com/abiosoft/colima/blob/main/docs/FAQ.md#cannot-connect-to-the-docker-daemon-at-unixvarrundockersock-is-the-docker-daemon-running
           sudo ln -sf $HOME/.colima/default/docker.sock /var/run/docker.sock
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         if: ${{ inputs.cache-playwright }}
         id: cache-playwright
         with:
           path: /Users/runner/Library/Caches/ms-playwright
           key: ms-playwright
 
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
         with:
           java-version: ${{ inputs.java-version }}
-          distribution: 'adopt'
+          distribution: 'temurin'
           cache: 'gradle'
       - run: ./gradlew build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           retention-days: 30
           name: artifact
           path: ${{ inputs.artifact-path }}
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v7
         if: ${{ inputs.codecov }}
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ${{ inputs.codecov-path }}
           verbose: true
+          fail_ci_if_error: false
