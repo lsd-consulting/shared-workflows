@@ -40,7 +40,7 @@ jobs:
         id: cache-playwright
         with:
           path: /Users/runner/Library/Caches/ms-playwright
-          key: ms-playwright
+          key: ms-playwright-${{ runner.os }}
 
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6
