@@ -1,6 +1,12 @@
 # This workflow will perform a semantic release
 # For more information see:
 #  https://github.com/marketplace/actions/action-for-semantic-release
+#
+# Releases happen only from a manual run (workflow_dispatch) or a scheduled run
+# (schedule) of the calling workflow, never on push or pull_request. Maven Central
+# limits the io.github.lsd-consulting namespace to 7 releases a month, so each
+# release is a deliberate choice. Callers that still run this on push keep
+# building but skip the release.
 
 name: Shared Release
 on:
@@ -9,10 +15,23 @@ on:
       java-version:
         required: true
         type: string
+      reason:
+        description: 'Why this release is happening (shown in the run summary)'
+        required: false
+        type: string
+        default: ''
 jobs:
   shared-release:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     steps:
+      - name: Record why
+        env:
+          REASON: ${{ inputs.reason }}
+          EVENT: ${{ github.event_name }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          echo "Release requested by $ACTOR via $EVENT: ${REASON:-no reason given}" | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Checkout
         uses: actions/checkout@v7
         with:
